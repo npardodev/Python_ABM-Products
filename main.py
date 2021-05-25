@@ -27,62 +27,77 @@ from tkinter import messagebox
 
 from PIL import ImageTk, Image
 
-
-
 class DataBase_Mysql:
+    """ Clase para la Base de datos
+    ...
 
+    Attributes
+    ----------
+    host : str
+        the ip of the DB
+    
+    port : int
+        the port of DB conn
+           
+    username : str
+        user to DB access
+    
+    password : str
+        passw to DB access
+    
+    database_name : str
+        Name of the DB
+               
+    conn :
+        Connector of the DB
+                   
+    cursor :
+        Cursor of the DB
+    
+    Database_tables :
+        Tables of the DB
+  
+    Methods
+    -------
+    open_connection()
+        Open the connection to the DB
+        
+    close_connection
+        Close the connection to the DB
+        
+    commit_changes
+        Apply the changes in the DB
+
+    """
+        
     def __init__(self):
+        """ Método constructor"""
+
         self.host = "localhost"
         self.port = 3306
         self.username = "root"
         self.password = "M2racuya"
-        self.database_name = 'database="productsControl"'
+        self.database_name = "productsControl"
         self.conn = 0
         self.cursor = 0
         self.Database_tables = ['tb_users', 'tb_groups']
 
-    def create_connection(self):
+    def open_connection(self):
         self.conn = pymysql.connect(host=self.host, user=self.username ,password=self.password, database= self.database_name)
         self.cursor = self.conn.cursor()
     
-    def create_cursor(self):
-        self.cursor = self.conn.cursor()
+    def close_connection(self):
+        self.conn.close()
 
     def commit_changes(self):
         self.conn.commit()
 
-
-    def query(self,query):
-        self.cursor.execute(query)
-        return self.cursor.fetchone()
-
-
-class DataBase_SqlLite:
-
-    def __init__(self):
-        self.PORT = 3306
-        self.USERNAME = ""
-        self.PASSWORD = ""
-        self.CONN = ""
-        self.CURSOR = ""
-        self.DATABASE = 'mydb'
-        self.DATABASE_TABLES = ['tb_users', 'tb_groups']
-
-    def create_connection(self):
-        #Sino existe la crea.
-        self.CONN = sqlite3.connect(self.DATABASE)
-    
-    def create_cursor(self):
-        self.CURSOR = self.CONN.cursor()
-
-    def commit_changes(self):
-        self.CONN.commit()
-
-
 class Aplicacion():
        
-    def __init__(self):       
-        # VENTANA PRINCIPAL
+    def __init__(self):
+        #Database
+        self.db = DataBase_Mysql()      
+        #UI App
         raiz = Tk()
         raiz.geometry('1200x700+0+0')
         raiz.title('Client DB example')
@@ -127,9 +142,15 @@ class Aplicacion():
         self.search_by = StringVar()
         self.search_text = StringVar()
 
+
+        color_fondo ="#ffffff"
+        color_back_text_title = "#E8E8E8"
+        color_back_text_label = "#D4D4DB"
+        
+        
         #<---------------ENCABEZADOS --------------->
-        img = Image.open("./1.png")  # PIL solution
-        img = img.resize((150, 80), Image.ANTIALIAS) #The (250, 250) is (height, width)
+        img = Image.open("./img/1.png")  # PIL solution
+        img = img.resize((75, 40), Image.ANTIALIAS) #The (250, 250) is (height, width)
         img = ImageTk.PhotoImage(img) # convert to PhotoImage
 
         color_fondo ="#ffffff"
@@ -139,6 +160,7 @@ class Aplicacion():
         
         #Load header in all Frame
         for frame in frames :
+            Label(frame, image = img, bg=color_fondo, fg="black", width="800",height="30").pack()
             tk.Label(frame,text="ABM Control de Productos", font=("Cambria",20,'bold'), bg=color_fondo, fg="#172E64", width="800", height="4").pack()
         #<------------------------------------------>
 
@@ -217,11 +239,11 @@ class Aplicacion():
         Combo_Search['values']=("Id","Item","Marca","Codigo", "Precio", "Descuento")
         Combo_Search.grid (row=0, column=1, pady=10, padx=20)
 
-        Text_Search = Entry (Detail_Frame,width="20", textvariable=self.search_text, font=("Cambria",10,''), fg="#172E64",state='readonly')
+        Text_Search = Entry(Detail_Frame,width="20", textvariable=self.search_text, font=("Cambria",10,''), fg="#172E64")
         Text_Search.grid (row=0, column=2, pady=10, padx=20, sticky="w")
 
-        btn_Search = Button(Detail_Frame, text="Buscar", width=10).grid(row=0,column=3, padx=10, pady=10)
-        btn_Showall = Button(Detail_Frame, text="Mostrar todos", width=10).grid(row=0,column=4, padx=10, pady=10)
+        btn_Search = Button(Detail_Frame, text="Buscar", width=10, command=self.search_data).grid(row=0,column=3, padx=10, pady=10)
+        btn_Showall = Button(Detail_Frame, text="Mostrar todos", width=10,command=self.search_all_data).grid(row=0,column=4, padx=10, pady=10)
         #========= Table Frame ===============
         Table_Frame = Frame (Detail_Frame, relief=RIDGE, bd=4, bg = color_back_text_title)
         Table_Frame.place(x=10, y=70, width=660, height=400)
@@ -258,6 +280,7 @@ class Aplicacion():
         self.Products_table.column("Descripcion",width=100)
 
         self.Products_table.pack(fill=BOTH, expand=1)
+        self.Products_table.bind("<ButtonRelease-1>",self.get_cursor)
         self.fetch_data()
         #<------------------------------------>
 
@@ -277,54 +300,66 @@ class Aplicacion():
         raiz.mainloop()
 
     def add_products(self):
-        conn = pymysql.connect(host="localhost", user="root", password="M2racuya", database="productsControl")
-        cursor = conn.cursor()
-        cursor.execute ('INSERT INTO products VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(self.Id_value.get(),
-                                                                                    self.Item_value.get(),
-                                                                                    self.Brand_value.get(),
-                                                                                    self.Model_value .get(),
-                                                                                    self.Ref_code_value .get(),
-                                                                                    self.Price_value.get(),
-                                                                                    self.Discount_value.get(),
-                                                                                    self.Description_value.get()
-                                                                                    ))
-        conn.commit()
-        conn.close
+
+        if self.Id_value.get() == "" or self.Item_value.get() == "" :
+            messagebox.showerror("Error, se requieren todos los campos")
+
+        #if self.Id_value.isnumeric():
+            #messagebox.showerror("Error, el ID debe ser numerico")
+
+        else:   
+            self.db.open_connection()                              
+            self.db.cursor.execute('INSERT INTO products VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',(self.Id_value.get(),
+                                                                                        self.Item_value.get(),
+                                                                                        self.Brand_value.get(),
+                                                                                        self.Model_value .get(),
+                                                                                        self.Ref_code_value .get(),
+                                                                                        self.Price_value.get(),
+                                                                                        self.Discount_value.get(),
+                                                                                        self.Description_value.get()
+                                                                                           ))
+            
+            self.db.commit_changes()
+            self.db.close_connection()
+            self.fetch_data()
+            self.clear_products()
+            messagebox.showinfo("Exitoso","Registro agregado correctamente")
 
 
     def fetch_data(self):
-        conn = pymysql.connect(host="localhost", user="root", password="M2racuya", database="productsControl")
-        cursor = conn.cursor()
-        cursor.execute ('SELECT * from products')
-        rows = cursor.fetchall()
+        self.db.open_connection()
+        self.db.cursor.execute('SELECT * from products')
+        rows = self.db.cursor.fetchall()
 
         if(len(rows)):
             self.Products_table.delete(*self.Products_table.get_children())
             for row in rows:
                 self.Products_table.insert('',END,values=row)
-                conn.commit()
-        conn.close()
+                self.db.commit_changes()
+        self.db.close_connection()
 
     def search_data(self):
-        conn = pymysql.connect(host="localhost", user="root", password="M2racuya", database="productsControl")
-        cursor = conn.cursor()
-        cursor.execute ('SELECT * from products where'+str(self.search_by.get() + "Like '%" + str(self.search_text.get()))+"%'")
-        rows = cursor.fetchall()
+        
+        self.db.open_connection()
+        self.db.cursor.execute('SELECT * from products where '+str(self.search_by.get() + " Like '%" + str(self.search_text.get()))+"%'")
+        rows = self.db.cursor.fetchall()
 
         if(len(rows)):
             self.Products_table.delete(*self.Products_table.get_children())
             for row in rows:
                 self.Products_table.insert('',END,values=row)
-                conn.commit()
-        conn.close()
+                self.db.commit_changes()
+        self.db.close_connection()
 
 
-    def get_cursor(self):
+    def search_all_data(self):
+        self.fetch_data()
 
+    def get_cursor(self,ev):
         cursor_row = self.Products_table.focus()
         contents = self.Products_table.item(cursor_row)
         row = contents ['values']
-
+        print(row)
         self.Id_value.set(row[0])
         self.Item_value.set(row[1])
         self.Brand_value.set(row[2])
@@ -335,22 +370,35 @@ class Aplicacion():
         self.Description_value.set(row[7])
 
     def delete_products(self):
-        conn = pymysql.connect(host="localhost", user="root",password="M2racuya" , database="productsControl")
-        cursor = conn.cursor()
-        cursor.execute ('delete from products where id=%s', self.Id_value.get())
-        conn.commit()
-        conn.close
+
+        self.db.open_connection()
+        cursor_row = self.Products_table.focus()
+        contents = self.Products_table.item(cursor_row)
+        row = contents ['values']
+        id =(row[0])
+
+        self.db.cursor.execute('delete from products where id=%s',id)
+        self.db.commit_changes()
+        self.db.close_connection()
         self.fetch_data()
         self.clear_products()
    
     def update_products(self):
-        conn = pymysql.connect(host="localhost", user="root", password="M2racuya" , database="productsControl")
-        cursor = conn.cursor()
-        cursor.execute ('SELECT * from products where id=%s', self.Id_value.get())
-        rows = cursor.fetchall()
 
-        conn.commit()
-        conn.close
+        self.db.open_connection()
+        self.db.cursor.execute('UPDATE products SET id=%s,item=%s,brand=%s,model=%s,code=%s,price=%s,discount=%s,description=%s',(self.Id_value.get(),
+                                                                                                                    self.Item_value.get(),
+                                                                                                                    self.Brand_value.get(),
+                                                                                                                    self.Model_value .get(),
+                                                                                                                    self.Ref_code_value .get(),
+                                                                                                                    self.Price_value.get(),
+                                                                                                                    self.Discount_value.get(),
+                                                                                                                    self.Description_value.get()
+                                                                                                                    ))
+        self.db.commit_changes()
+        self.fetch_data()
+        self.clear_products()
+        self.db.close_connection()
 
     def clear_products(self):
         self.Id_value.set("")
@@ -361,8 +409,6 @@ class Aplicacion():
         self.Price_value.set("")
         self.Discount_value.set("")
         self.Description_value.set("")
-
-
 
 """
 Init loggin Opt
@@ -378,10 +424,6 @@ def main():
     loggin_init()
     logging.info('Inicio de aplicación')
     App = Aplicacion()
-    logging.info('Conexion a Base de datos')
-    Db = DataBase_Mysql()
-    Db.create_connection()
-    Db.create_cursor()
     logging.info('Fin de aplicación')
     return 0
 
